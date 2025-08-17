@@ -246,6 +246,39 @@ giveweapon:addParam{
 
 giveweapon:defaultAccess(ULib.ACCESS_ADMIN)
 giveweapon:help("Give a player a weapon - !giveweapon")
+
+function ulx.forcegiveweapon(calling_ply, target_plys, weapon)
+	local affected_plys = {}
+	for i = 1, #target_plys do
+		local v = target_plys[i]
+		if not v:Alive() then
+			--ULib.tsayError(calling_ply, v:Nick() .. " is dead", true)
+		else
+			local ent = ents.Create(weapon)
+			ent:SetPos(v:GetPos())
+			ent:Spawn()
+			ent:Activate()
+			v:PickupWeapon(ent)
+			table.insert(affected_plys, v)
+		end
+	end
+
+	ulx.fancyLogAdmin(calling_ply, "#A force gave #T weapon #s", affected_plys, weapon)
+end
+
+local forcegiveweapon = ulx.command(CATEGORY_NAME, "ulx forcegiveweapon", ulx.forcegiveweapon, "!forcegiveweapon")
+forcegiveweapon:addParam{
+	type = ULib.cmds.PlayersArg
+}
+
+forcegiveweapon:addParam{
+	type = ULib.cmds.StringArg,
+	hint = "weapon_zs_admin_nuke"
+}
+
+forcegiveweapon:defaultAccess(ULib.ACCESS_ADMIN)
+forcegiveweapon:help("Force(Ignore limits,example: zombie only weapons) Give a player a weapon - !forcegiveweapon")
+
 --Redeem Player--
 function ulx.redeem(calling_ply, target_plys)
 	local affected_plys = {}
