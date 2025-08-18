@@ -46,7 +46,7 @@ function ulx.forceclass2(calling_ply, target_plys, className, respawn) --CONFLIC
 			ULib.tsayError(calling_ply, ply:Nick() .. " is a human!", true)
 		else
 			local oldclass = ply.DeathClass or ply:GetZombieClass()
-			local pos,ang = ply:GetPos(),ply:EyeAngles()
+			local pos, ang = ply:GetPos(), ply:EyeAngles()
 			ply:KillSilent()
 			ply:SetZombieClassName(fclass.Name)
 			ply.DeathClass = nil
@@ -54,7 +54,7 @@ function ulx.forceclass2(calling_ply, target_plys, className, respawn) --CONFLIC
 			ply:UnSpectateAndSpawn()
 			ply.DeathClass = oclass
 			table.insert(affected, ply)
-			if not respawn then 
+			if not respawn then
 				ply:SetPos(pos)
 				ply:SetEyeAngles(ang)
 			end
@@ -110,7 +110,7 @@ setwave:addParam{
 setwave:defaultAccess(ULib.ACCESS_ADMIN)
 setwave:help("Set the wave.")
 function ulx.setwavetime(calling_ply, additional_time)
-	if GAMEMODE:GetWave() == 0 then
+	if not GAMEMODE:GetWaveActive() then
 		GAMEMODE:SetWaveStart(CurTime() + additional_time)
 	else
 		GAMEMODE:SetWaveEnd(GAMEMODE:GetWaveEnd() + additional_time)
@@ -156,6 +156,8 @@ function ulx.giveammo(calling_ply, target_plys, amount, ammotype)
 			v:GiveAmmo(amount, ammotype)
 		end
 	end
+
+	ulx.fancyLogAdmin(calling_ply, "#A gave #s #s ammo to #T", amount, ammotype, target_plys)
 end
 
 local giveammo = ulx.command(CATEGORY_NAME, "ulx giveammo", ulx.giveammo, "!giveammo")
@@ -246,7 +248,6 @@ giveweapon:addParam{
 
 giveweapon:defaultAccess(ULib.ACCESS_ADMIN)
 giveweapon:help("Give a player a weapon - !giveweapon")
-
 function ulx.forcegiveweapon(calling_ply, target_plys, weapon)
 	local affected_plys = {}
 	for i = 1, #target_plys do
@@ -278,7 +279,6 @@ forcegiveweapon:addParam{
 
 forcegiveweapon:defaultAccess(ULib.ACCESS_ADMIN)
 forcegiveweapon:help("Force(Ignore limits,example: zombie only weapons) Give a player a weapon - !forcegiveweapon")
-
 --Redeem Player--
 function ulx.redeem(calling_ply, target_plys)
 	local affected_plys = {}
@@ -382,7 +382,6 @@ forceteam:addParam{
 
 forceteam:defaultAccess(ULib.ACCESS_ADMIN)
 forceteam:help("FORCE TEAM(DANGEROUS!)")
-
 function ulx.endround(caller, winner)
 	local teams = {
 		bandit = TEAM_UNDEAD, --WHAT THE FUCK, AGAIN!
@@ -397,16 +396,12 @@ function ulx.endround(caller, winner)
 	}
 
 	local team = teams[winner]
-
 	if not team then return end
-
 	GAMEMODE:EndRound(team)
-
-	ulx.fancyLogAdmin(caller, "#A made #s won this round.",winner)
+	ulx.fancyLogAdmin(caller, "#A made #s won this round.", winner)
 end
 
 local endround = ulx.command(CATEGORY_NAME, "ulx endround", ulx.endround, "!endround")
-
 endround:addParam{
 	type = ULib.cmds.StringArg,
 	hint = "winner",
@@ -415,3 +410,260 @@ endround:addParam{
 
 endround:defaultAccess(ULib.ACCESS_ADMIN)
 endround:help("End Round.")
+function ulx.zskd(cp, p, n)
+	for _, ply in pairs(p) do
+		if ply:IsValid() then ply:KnockDown(n) end
+	end
+
+	ulx.fancyLogAdmin(cp, "#A knock #T down for #i seconds", p, n)
+end
+
+function ulx.zsrm(cp, p, n)
+	for _, ply in pairs(p) do
+		if ply:IsValid() then ply:SetZSRemortLevel(n) end
+	end
+
+	ulx.fancyLogAdmin(cp, "#A Set #T's remort to #i", p, n)
+end
+
+function ulx.zsspm(cp, p, n)
+	for _, ply in pairs(p) do
+		if ply:IsValid() then ply.PointIncomeMul = n end
+	end
+
+	ulx.fancyLogAdmin(cp, "#A Set #T's Point mul to #i", p, n)
+end
+
+function ulx.zsda(cp, p)
+	for _, ply in pairs(p) do
+		if ply:IsValid() then ply:DropAll() end
+	end
+
+	ulx.fancyLogAdmin(cp, "#A Made #T drop everything.", p)
+end
+
+function ulx.zsfn(cp, call, unremoveable, mul, str)
+	if cp:IsValid() then
+		local aimvec = cp:GetAimVector()
+		local tr = cp:GetEyeTrace()
+		local trent = tr.Entity
+		if trent:IsValid() then
+			local tr2 = util.TraceLine({
+				start = tr.HitPos,
+				endpos = tr.HitPos + aimvec * 24000,
+				filter = table.Add({cp, trent}, GAMEMODE.CachedInvisibleEntities),
+				mask = MASK_SOLID
+			})
+
+			local tr2ent = tr2.Entity
+			if tr2.HitWorld or tr2ent:IsValid() then
+				local cons = constraint.Weld(trent, tr2ent, tr.PhysicsBone, tr2.PhysicsBone, 0, true)
+				if cons ~= nil then
+					for _, oldcons in pairs(constraint.FindConstraints(trent, "Weld")) do
+						if oldcons.Ent1 == ent or oldcons.Ent2 == ent then
+							cons = oldcons.Constraint
+							break
+						end
+					end
+				end
+
+				if not cons and not trent:IsNailed() then return end
+				local nail = ents.Create(str)
+				if nail:IsValid() then
+					nail:SetActualOffset(tr.HitPos, trent)
+					nail:SetPos(tr.HitPos - aimvec * 8)
+					nail:SetAngles(aimvec:Angle())
+					nail.HealthMultiplier = mul
+					nail:AttachTo(trent, tr2ent, tr.PhysicsBone, tr2.PhysicsBone)
+					nail:Spawn()
+					nail:SetDeployer(cp)
+					if unremoveable then nail.m_NailUnremovable = true end
+					if not trent:IsNailed() then cons:DeleteOnRemove(nail) end
+					if call == true then gamemode.Call("OnNailCreated", trent, tr2ent, nail) end
+					nail:EmitSound(string.format("weapons/melee/crowbar/crowbar_hit-%d.ogg", math.random(4)))
+					ulx.fancyLogAdmin(cp, "#A Force nailed a prop.")
+				end
+			end
+		end
+	end
+end
+
+function ulx.zsfrp(cp, health)
+	if cp:IsValid() then
+		local tr = cp:GetEyeTrace()
+		local trent = tr.Entity
+		if trent:IsValid() then
+			local oh = trent:GetMaxBarricadeHealth()
+			trent:SetBarricadeHealth(math.min(trent:GetMaxBarricadeHealth(), trent:GetBarricadeHealth() + health))
+			local healed = trent:GetBarricadeHealth() - oh
+			gamemode.Call("PlayerRepairedObject", cp, trent, healed, cp)
+			local ed = EffectData()
+			ed:SetOrigin(tr.HitPos)
+			ed:SetNormal(tr.HitNormal)
+			ed:SetMagnitude(1)
+			util.Effect("nailrepaired", ed, true, true)
+		end
+	end
+end
+
+function ulx.zsd(cp, str, num, health)
+	if cp:IsValid() then
+		local gr = Angle(270, 0, 0)
+		local yaw = cp:GetAngles().yaw
+		local tr = util.TraceLine({
+			start = cp:GetShootPos(),
+			endpos = cp:GetShootPos() + cp:GetAimVector() * 60000,
+			mask = MASK_SOLID_BRUSHONLY,
+			collisiongroup = COLLISION_GROUP_NONE,
+			ignoreworld = false,
+			output = nil
+		})
+
+		local trn = tr.HitNormal
+		local trp = tr.HitPos
+		local ea = trn:Angle()
+		ea:RotateAroundAxis(ea:Right(), gr.pitch)
+		ea:RotateAroundAxis(ea:Up(), gr.yaw)
+		ea:RotateAroundAxis(ea:Forward(), gr.roll)
+		ea:RotateAroundAxis(ea["Up"](ea), cp:GetAngles().yaw)
+		local obj = ents.Create(str)
+		if obj:IsValid() then
+			obj:SetPos(trp)
+			obj:SetAngles(ea)
+			obj.PreOwn = cp
+			obj:Spawn()
+			obj.MaxAmmo = num
+			if health > 0 then
+				pcall(function(n) obj:SetObjectMaxHealth(n) end, health)
+				pcall(function(n) obj:SetObjectHealth(n) end, health)
+			end
+
+			pcall(function(n) obj:SetAmmo(n) end, num)
+			pcall(function(n) obj:SetObjectOwner(n) end, cp)
+		end
+	end
+end
+
+local zskd
+zskd = ulx.command(CATEGORY_NAME, "ulx knockdown", ulx.zskd, "!zskd", true)
+zskd:addParam{
+	type = ULib.cmds.PlayersArg,
+	default = "@",
+	ULib.cmds.optional
+}
+
+zskd:addParam{
+	type = ULib.cmds.NumArg,
+	default = 69,
+	hint = "Knockdown time"
+}
+
+zskd:help("Knockdown")
+zskd:defaultAccess(ULib.ACCESS_ADMIN)
+local zsda
+zsda = ulx.command(CATEGORY_NAME, "ulx dropall", ulx.zsda, "!zsda", true)
+zsda:addParam{
+	type = ULib.cmds.PlayersArg,
+	default = "^",
+	ULib.cmds.optional
+}
+
+zsda:help("Makes target drop all wep and ammo and items")
+zsda:defaultAccess(ULib.ACCESS_ADMIN)
+local zsfn
+zsfn = ulx.command(CATEGORY_NAME, "ulx forcenail", ulx.zsfn, "!zsnail", true)
+zsfn:addParam{
+	type = ULib.cmds.BoolArg,
+	default = true,
+	hint = "Call gamemode hook?",
+	ULib.cmds.optional
+}
+
+zsfn:addParam{
+	type = ULib.cmds.BoolArg,
+	default = false,
+	hint = "Unremoveable",
+	ULib.cmds.optional
+}
+
+zsfn:addParam{
+	type = ULib.cmds.NumArg,
+	default = 1,
+	hint = "Health mul",
+	ULib.cmds.optional
+}
+
+zsfn:addParam{
+	type = ULib.cmds.StringArg,
+	hint = "prop_nail",
+	default = "prop_nail",
+	ULib.cmds.optional
+}
+
+zsfn:help("Force nail a prop.")
+zsfn:defaultAccess(ULib.ACCESS_ADMIN)
+local zsfrp
+zsfrp = ulx.command(CATEGORY_NAME, "ulx forcerepair", ulx.zsfrp)
+zsfrp:addParam{
+	type = ULib.cmds.NumArg,
+	min = 1,
+	max = 99999999,
+	default = 6900,
+	hint = "Repair hp"
+}
+
+zsfrp:help("Force to repair the prop (Ignore max repair)")
+zsfrp:defaultAccess(ULib.ACCESS_ADMIN)
+local zsddps = {"prop_resupplybox", "prop_aegisboard", "prop_gunturret", "prop_gunturret_rocket", "prop_arsenalcrate", "prop_remantler", "prop_zapper", "prop_zapper_arc"}
+local zsd
+zsd = ulx.command(CATEGORY_NAME, "ulx placedeploy", ulx.zsd, "!zspd", true)
+zsd:addParam{
+	type = ULib.cmds.StringArg,
+	completes = zsddps,
+	hint = "prop_gunturret"
+}
+
+zsd:addParam{
+	type = ULib.cmds.NumArg,
+	hint = "Ammo"
+}
+
+zsd:addParam{
+	type = ULib.cmds.NumArg,
+	hint = "Health(-1=default)"
+}
+
+zsd:help("Place a deployable")
+zsd:defaultAccess(ULib.ACCESS_ADMIN)
+local zsrm
+zsrm = ulx.command(CATEGORY_NAME, "ulx setremort", ulx.zsrm, "!zsrm", true)
+zsrm:addParam{
+	type = ULib.cmds.PlayersArg,
+	default = "^",
+	ULib.cmds.optional
+}
+
+zsrm:addParam{
+	type = ULib.cmds.NumArg,
+	default = 0,
+	hint = "num"
+}
+
+zsrm:help("Set target(s)'s remort")
+zsrm:defaultAccess(ULib.ACCESS_ADMIN)
+local zsrm
+zsrm = ulx.command(CATEGORY_NAME, "ulx setpointmul", ulx.zsspm, "!zsspm", true)
+zsrm:addParam{
+	type = ULib.cmds.PlayersArg,
+	default = "^",
+	ULib.cmds.optional
+}
+
+zsrm:addParam{
+	type = ULib.cmds.NumArg,
+	default = 0,
+	hint = "num"
+}
+
+zsrm:help("Set target(s)'s point mul")
+zsrm:defaultAccess(ULib.ACCESS_ADMIN)
