@@ -89,7 +89,7 @@ timer.Create("Refresh FORCECLASS_COMPLETES", 0.5, 3, function()
 	end
 end)
 
-forceclass:defaultAccess(ULib.ACCESS_SUPERADMIN)
+forceclass:defaultAccess(ULib.ACCESS_ADMIN)
 forceclass:help("Sets the selected players to a zombie class! This function is case sensitive.")
 function ulx.setwave(calling_ply, wave)
 	if wave then
