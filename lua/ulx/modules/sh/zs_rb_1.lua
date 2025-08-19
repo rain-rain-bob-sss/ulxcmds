@@ -109,14 +109,14 @@ setwave:addParam{
 
 setwave:defaultAccess(ULib.ACCESS_ADMIN)
 setwave:help("Set the wave.")
-function ulx.setwavetime(calling_ply, additional_time)
+function ulx.setwavetime(calling_ply, time)
 	if not GAMEMODE:GetWaveActive() then
-		GAMEMODE:SetWaveStart(CurTime() + additional_time)
+		GAMEMODE:SetWaveStart(CurTime() + time)
 	else
-		GAMEMODE:SetWaveEnd(GAMEMODE:GetWaveEnd() + additional_time)
+		GAMEMODE:SetWaveEnd(CurTime() + time)
 	end
 
-	ulx.fancyLogAdmin(calling_ply, "#A set the wave time to #s", additional_time)
+	ulx.fancyLogAdmin(calling_ply, "#A set the wave time to #s", time)
 end
 
 local setwavetime = ulx.command(CATEGORY_NAME, "ulx setwavetime", ulx.setwavetime, "!setwavetime")
