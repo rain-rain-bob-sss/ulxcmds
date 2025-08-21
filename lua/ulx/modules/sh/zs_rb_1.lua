@@ -238,6 +238,31 @@ givexp:addParam{
 
 givexp:defaultAccess(ULib.ACCESS_ADMIN)
 givexp:help("Gives XP to target(s).")
+
+function ulx.weaponComplete( ply, args, overrideList, maxResults )
+	local targs = string.Trim( args )
+	local List = overrideList or {}
+	if overrideList then table.Empty(List) end
+
+	maxResults = maxResults or 50
+	for _, SWEP in ipairs( weapons.GetList() ) do
+		if #List > maxResults then break end
+		if SWEP.QualityTier and SWEP.QualityTier >= 1 then continue end
+		if targs:len() == 0 or SWEP.ClassName:sub( 1, targs:len() ) == targs then
+			table.insert(List, SWEP.ClassName)
+		end
+	end
+
+	table.sort(List,function(a,b)
+		return a < b 
+	end)
+
+	return List
+end
+
+local weaponCompletes = {}
+timer.Simple(1,function() ulx.weaponComplete(_,"",weaponCompletes) end)
+
 --Give Weapon--
 function ulx.giveweapon(calling_ply, target_plys, weapon)
 	local affected_plys = {}
@@ -261,7 +286,10 @@ giveweapon:addParam{
 
 giveweapon:addParam{
 	type = ULib.cmds.StringArg,
-	hint = "weapon_zs_admin_nuke"
+	hint = "weapon_zs_crowbar",
+	autocomplete_fn = ulx.weaponComplete,
+	completes = weaponCompletes,
+	ULib.cmds.takeRestOfLine
 }
 
 giveweapon:defaultAccess(ULib.ACCESS_ADMIN)
@@ -274,6 +302,7 @@ function ulx.forcegiveweapon(calling_ply, target_plys, weapon)
 			--ULib.tsayError(calling_ply, v:Nick() .. " is dead", true)
 		else
 			local ent = ents.Create(weapon)
+			if not IsValid(ent) then ULib.tsayError(calling_ply, "This weapon does not exist!", true) break end
 			ent:SetPos(v:GetPos())
 			ent:Spawn()
 			ent:Activate()
@@ -292,7 +321,10 @@ forcegiveweapon:addParam{
 
 forcegiveweapon:addParam{
 	type = ULib.cmds.StringArg,
-	hint = "weapon_zs_admin_nuke"
+	hint = "weapon_zs_nightmare",
+	autocomplete_fn = ulx.weaponComplete,
+	completes = weaponCompletes,
+	ULib.cmds.takeRestOfLine
 }
 
 forcegiveweapon:defaultAccess(ULib.ACCESS_ADMIN)
