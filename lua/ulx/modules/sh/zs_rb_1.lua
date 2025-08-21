@@ -165,8 +165,38 @@ end
 local restartround = ulx.command(CATEGORY_NAME, "ulx restartround", ulx.restartround, "!restartround")
 restartround:defaultAccess(ULib.ACCESS_ADMIN)
 restartround:help("Restart round.")
+
+local ammoCompletes = {}
+
+timer.Simple(1,function()
+	for i,v in ipairs(game.GetAmmoTypes()) do 
+		table.insert(ammoCompletes,v)
+	end
+	table.sort(ammoCompletes,function(a,b) return a < b end)
+end)
+
 --Give Ammo--
 function ulx.giveammo(calling_ply, target_plys, amount, ammotype)
+
+	if IsValid(calling_ply) then
+		local wep = calling_ply:GetActiveWeapon()
+		if IsValid(wep) then
+			if ammotype == "current1" then 
+				ammotype = wep:GetPrimaryAmmoType()
+			elseif ammotype == "current2" then 
+				ammotype = wep:GetSecondaryAmmoType()
+			end
+		end
+	end
+
+	local a = game.GetAmmoTypes()
+	local b = table.GetKeys(a)
+
+	if not a[ammotype] and not b[ammotype] then 
+		ULib.tsayError(calling_ply, "ammo " .. ammotype .. " doesn't exist!", true)
+		return
+	end
+
 	local affected_plys = {}
 	for i = 1, #target_plys do
 		local v = target_plys[i]
@@ -175,7 +205,7 @@ function ulx.giveammo(calling_ply, target_plys, amount, ammotype)
 		end
 	end
 
-	ulx.fancyLogAdmin(calling_ply, "#A gave #s #s ammo to #T", amount, ammotype, target_plys)
+	ulx.fancyLogAdmin(calling_ply, "#A gave #s #s ammo to #T", amount, game.GetAmmoName(ammotype) or ammotype, target_plys)
 end
 
 local giveammo = ulx.command(CATEGORY_NAME, "ulx giveammo", ulx.giveammo, "!giveammo")
@@ -190,7 +220,8 @@ giveammo:addParam{
 
 giveammo:addParam{
 	type = ULib.cmds.StringArg,
-	hint = "Ammo Type"
+	hint = "Ammo Type",
+	completes = ammoCompletes
 }
 
 giveammo:defaultAccess(ULib.ACCESS_ADMIN)
