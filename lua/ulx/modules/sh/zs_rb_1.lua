@@ -107,6 +107,24 @@ setwave:addParam{
 	ULib.cmds.round
 }
 
+function ulx.setmaxwave(calling_ply, wave)
+	if wave then
+		SetGlobalInt("numwaves", wave)
+		ulx.fancyLogAdmin(calling_ply, "#A set the max wave to #s", wave)
+	end
+end
+
+local setmaxwave = ulx.command(CATEGORY_NAME, "ulx setmaxwave", ulx.setmaxwave, "!setmaxwave")
+setmaxwave:addParam{
+	type = ULib.cmds.NumArg,
+	min = 1,
+	default = 6,
+	hint = "max wave",
+	ULib.cmds.round
+}
+setmaxwave:defaultAccess(ULib.ACCESS_ADMIN)
+
+
 setwave:defaultAccess(ULib.ACCESS_ADMIN)
 setwave:help("Set the wave.")
 function ulx.setwavetime(calling_ply, time)
@@ -132,7 +150,7 @@ setwavetime:defaultAccess(ULib.ACCESS_ADMIN)
 setwavetime:help("Add more time to the current wave or the start time of wave 0.")
 function ulx.restartmap(calling_ply)
 	ulx.fancyLogAdmin(calling_ply, "#A restarted the map.")
-	game.ConsoleCommand("changelevel " .. string.format(game.GetMap(), ".bsp") .. "\n")
+	RunConsoleCommand("changelevel",game.GetMap())
 end
 
 local restartmap = ulx.command(CATEGORY_NAME, "ulx restartmap", ulx.restartmap, "!restartmap")
@@ -304,6 +322,31 @@ redeem:addParam{
 
 redeem:defaultAccess(ULib.ACCESS_ADMIN)
 redeem:help("Redeems target(s).")
+
+--Redeem Player--
+function ulx.fredeem(calling_ply, target_plys)
+	local affected_plys = {}
+	for i = 1, #target_plys do
+		local v = target_plys[i]
+		if ulx.getExclusive(v, calling_ply) then
+			ULib.tsayError(calling_ply, ulx.getExclusive(v, calling_ply), true)
+		else
+			v:Redeem()
+			table.insert(affected_plys, v)
+		end
+	end
+
+	ulx.fancyLogAdmin(calling_ply, "#A force redeemed #T", affected_plys)
+end
+
+local fredeem = ulx.command(CATEGORY_NAME, "ulx fredeem", ulx.fredeem, "!fredeem")
+fredeem:addParam{
+	type = ULib.cmds.PlayersArg
+}
+
+fredeem:defaultAccess(ULib.ACCESS_ADMIN)
+fredeem:help("Force redeems target(s).")
+
 --Wave Active--
 function ulx.waveactive(calling_ply, state)
 	GAMEMODE:SetWaveActive(state)
@@ -410,6 +453,7 @@ endround:addParam{
 
 endround:defaultAccess(ULib.ACCESS_ADMIN)
 endround:help("End Round.")
+
 function ulx.zskd(cp, p, n)
 	for _, ply in pairs(p) do
 		if ply:IsValid() then ply:KnockDown(n) end
@@ -423,7 +467,7 @@ function ulx.zsrm(cp, p, n)
 		if ply:IsValid() then ply:SetZSRemortLevel(n) end
 	end
 
-	ulx.fancyLogAdmin(cp, "#A Set #T's remort to #i", p, n)
+	ulx.fancyLogAdmin(cp, "#A set #T's remort to #i", p, n)
 end
 
 function ulx.zsspm(cp, p, n)
@@ -431,7 +475,7 @@ function ulx.zsspm(cp, p, n)
 		if ply:IsValid() then ply.PointIncomeMul = n end
 	end
 
-	ulx.fancyLogAdmin(cp, "#A Set #T's Point mul to #i", p, n)
+	ulx.fancyLogAdmin(cp, "#A set #T's point mul to #i", p, n)
 end
 
 function ulx.zsda(cp, p)
@@ -439,7 +483,7 @@ function ulx.zsda(cp, p)
 		if ply:IsValid() then ply:DropAll() end
 	end
 
-	ulx.fancyLogAdmin(cp, "#A Made #T drop everything.", p)
+	ulx.fancyLogAdmin(cp, "#A made #T drop everything.", p)
 end
 
 function ulx.zsfn(cp, call, unremoveable, mul, str)
@@ -481,7 +525,7 @@ function ulx.zsfn(cp, call, unremoveable, mul, str)
 					if not trent:IsNailed() then cons:DeleteOnRemove(nail) end
 					if call == true then gamemode.Call("OnNailCreated", trent, tr2ent, nail) end
 					nail:EmitSound(string.format("weapons/melee/crowbar/crowbar_hit-%d.ogg", math.random(4)))
-					ulx.fancyLogAdmin(cp, "#A Force nailed a prop.")
+					ulx.fancyLogAdmin(cp, "#A force nailed a prop.")
 				end
 			end
 		end
