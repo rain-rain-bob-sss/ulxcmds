@@ -745,7 +745,7 @@ hook.Add("Initialize","ZS_RB_1_FRIENDLYFIREMODE_FIXBULLETS",function()
 				net.Broadcast()
 				return
 			end
-			return old_DoPlayerDeath(pl, attacker, dmginfo,...)
+			return old_DoPlayerDeath(self, pl, attacker, dmginfo,...)
 		end
 	end
 
@@ -835,7 +835,34 @@ function ulx.zsda(cp, p)
 	ulx.fancyLogAdmin(cp, "#A made #T drop everything.", p)
 end
 
-function ulx.zsfn(cp, call, unremoveable, mul, str)
+local dumbtracee = {
+	FractionLeftSolid = 0,
+	HitNonWorld       = true,
+	HitWorld = false,
+	Fraction          = 0,
+	Entity            = NULL,
+	HitPos            = Vector(0, 0, 0),
+	HitNormal         = Vector(0, 0, 0),
+	HitBox            = 0,
+	Normal            = Vector(1, 0, 0),
+	Hit               = true,
+	HitGroup          = 0,
+	MatType           = 0,
+	StartPos          = Vector(0, 0, 0),
+	PhysicsBone       = 0,
+	WorldToLocal      = Vector(0, 0, 0),
+}
+local function dumbtrace(entity, pos)
+	if entity then 
+		dumbtracee.Entity = entity 
+		dumbtracee.HitNonWorld = entity ~= game.GetWorld()
+		dumbtracee.HitWorld = not dumbtracee.HitNonWorld
+	end
+	if pos then dumbtracee.HitPos = pos end
+	return dumbtracee
+end
+
+function ulx.zsfn(cp, call, unremoveable, nailtoworld, mul, str)
 	if cp:IsValid() then
 		local aimvec = cp:GetAimVector()
 		local tr = cp:GetEyeTrace()
@@ -847,6 +874,10 @@ function ulx.zsfn(cp, call, unremoveable, mul, str)
 				filter = table.Add({cp, trent}, GAMEMODE.CachedInvisibleEntities),
 				mask = MASK_SOLID
 			})
+
+			if nailtoworld then 
+				tr2 = dumbtrace(game.GetWorld(),tr.HitPos)
+			end
 
 			local tr2ent = tr2.Entity
 			if tr2.HitWorld or tr2ent:IsValid() then
@@ -978,6 +1009,14 @@ zsfn:addParam{
 	hint = "Unremoveable",
 	ULib.cmds.optional
 }
+
+zsfn:addParam{
+	type = ULib.cmds.BoolArg,
+	default = true,
+	hint = "Nail To World",
+	ULib.cmds.optional
+}
+
 
 zsfn:addParam{
 	type = ULib.cmds.NumArg,
