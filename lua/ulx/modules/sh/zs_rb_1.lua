@@ -517,6 +517,292 @@ endround:addParam{
 endround:defaultAccess(ULib.ACCESS_ADMIN)
 endround:help("End Round.")
 
+--FRIENDLY FIRE MODE--
+--aka pvp mode--
+
+
+--FIX BULLETS HIT
+--AND MELEE TRACES
+--yes,this overrides Entity:FireBulletsLua and Player:MeleeTrace
+
+--This should be correct.
+--I hope it is correct and doesn't break anything.
+local function PlayerCanDamageTeam(att,vic)
+	--Why NWBool? Because prediction. Haha, source engine bullcrap
+	if GetGlobalBool("zs_rb_1_friendlyfiremode") then return true end
+	if not att then return vic:GetNWBool("AllowTeamDamage") end
+	if not vic then return att:GetNWBool("AllowTeamDamage") end
+	return att:GetNWBool("AllowTeamDamage") or vic:GetNWBool("AllowTeamDamage")
+end
+
+local function PlayerZSDamageTeam(att,vic)
+	if not att then return vic:GetNWBool("AllowTeamDamage") end
+	if not vic then return att:GetNWBool("AllowTeamDamage") end
+	return att:GetNWBool("AllowTeamDamage") or vic:GetNWBool("AllowTeamDamage")
+end
+
+--This runs before gamemode caches it.
+local meta = FindMetaTable("Player")
+meta.OldTeam_ZS_RB_1 = meta.OldTeam_ZS_RB_1 or meta.Team
+local overrideteam
+function meta:Team(...)
+	if overrideteam and self ~= MySelf then return overrideteam end
+	return self:OldTeam_ZS_RB_1(...)
+end
+
+local function DelayedChangeToZombie(pl)
+	if pl:IsValid() then
+		if pl.ChangeTeamFrags then
+			pl:SetFrags(pl.ChangeTeamFrags)
+			pl.ChangeTeamFrags = 0
+		end
+
+		pl:ChangeTeam(TEAM_UNDEAD)
+	end
+end
+
+hook.Add("Initialize","ZS_RB_1_FRIENDLYFIREMODE_FIXBULLETS",function()
+	local meta = FindMetaTable("Player")
+	meta.OldMeleeTrace_ZS_RB_1 = meta.OldMeleeTrace_ZS_RB_1 or meta.MeleeTrace
+	function meta:MeleeTrace(distance, size, start, dir, hit_team_members, override_team, override_mask, ...)
+		hit_team_members = hit_team_members or PlayerCanDamageTeam(self)
+		return self:OldMeleeTrace_ZS_RB_1(distance, size, start, dir, hit_team_members, override_team, override_mask, ...)
+	end
+	
+	local P_Team = meta.Team
+	meta.OldShouldNotCollide_ZS_RB_1 = meta.OldShouldNotCollide_ZS_RB_1 or meta.ShouldNotCollide
+	function meta:ShouldNotCollide(ent,...)
+		if getmetatable(ent) == meta then
+			if P_Team(self) == P_Team(ent) and PlayerCanDamageTeam(self,ent) then --We shall collide because we're "enemies" now.
+				return false
+			end
+		end
+		return self:OldShouldNotCollide_ZS_RB_1(ent,...)
+	end
+
+	local GM = GAMEMODE
+	if CLIENT then
+		local old_PrePlayerDraw = GM._PrePlayerDraw
+		function GM:_PrePlayerDraw(pl,...)
+			overrideteam = 99999
+			local r = old_PrePlayerDraw(self,pl,...)
+			overrideteam = nil
+			return r
+		end
+	else
+		local old_EntityTakeDamage = GM.EntityTakeDamage
+		function GM:EntityTakeDamage(ent, dmginfo,...)
+			local result = old_EntityTakeDamage(self,ent,dmginfo,...)
+
+			local attacker, inflictor = dmginfo:GetAttacker(), dmginfo:GetInflictor()
+			if dmginfo:GetDamage() ~= 0 then
+				if ent:IsPlayer() then
+					local w = false
+					if attacker.PBAttacker and attacker.PBAttacker:IsValid() then
+						attacker = attacker.PBAttacker
+					end
+
+					if attacker:IsValid() and attacker:IsPlayer() then
+						ent:SetLastAttacker(attacker)
+
+						local myteam = attacker:Team()
+						local otherteam = ent:Team()
+
+						if myteam == otherteam and PlayerCanDamageTeam(attacker,ent) then
+							local damage = math.min(dmginfo:GetDamage(), ent:Health())
+							if damage > 0 then
+								local time = CurTime()
+
+								attacker.DamageDealt[myteam] = attacker.DamageDealt[myteam] + damage
+								local points = damage / 100 * 25
+								if POINTSMULTIPLIER then
+									points = points * POINTSMULTIPLIER
+								end
+								if ent.PointsMultiplier then
+									points = points * ent.PointsMultiplier
+								end
+								attacker.PointQueue = attacker.PointQueue + points
+
+								GAMEMODE.StatTracking:IncreaseElementKV(STATTRACK_TYPE_WEAPON, inflictor:GetClass(), "PointsEarned", points)
+								GAMEMODE.StatTracking:IncreaseElementKV(STATTRACK_TYPE_WEAPON, inflictor:GetClass(), "Damage", damage)
+
+								local pos = ent:GetPos()
+								pos.z = pos.z + 32
+								attacker.LastDamageDealtPos = pos
+								attacker.LastDamageDealtTime = time
+							end
+							w = not PlayerZSDamageTeam(attacker,ent) -- ZS ALLOWS DAMAGE NUMBER IF AllowTeamDamage is true,wow
+						end
+					end
+
+					local dmg = dmginfo:GetDamage()
+					if w and dmg > 0 then
+						local dmgpos = dmginfo:GetDamagePosition()
+						local hasdmgsess = attacker:IsPlayer() and attacker:HasDamageNumberSession()
+						if not hasdmgsess then
+							self:DamageFloater(attacker, ent, dmgpos, dmg)
+						else
+							attacker:CollectDamageNumberSession(dmg, dmgpos, ent:IsPlayer())
+						end
+					end
+				end
+			end
+			
+			return result
+		end
+
+		local old_DoPlayerDeath = GM.DoPlayerDeath
+		function GM:DoPlayerDeath(pl, attacker, dmginfo,...)
+			if attacker:IsPlayer() and pl:Team() == attacker:Team() and PlayerCanDamageTeam(attacker,pl) and pl:Team() == TEAM_HUMAN then 
+				pl:RemoveEphemeralStatuses()
+				pl:Extinguish()
+				pl:SetPhantomHealth(0)
+				pl:Freeze(false)
+				pl:SetLastAttacker()
+
+				local headshot = pl:WasHitInHead()
+
+				local ct = CurTime()
+				local suicide = attacker == pl or attacker:IsWorld()
+				local plteam = pl:Team()
+
+				if suicide then attacker = pl:GetLastAttacker() or attacker end
+
+				pl:SetLastAttacker()
+
+				if attacker.PBAttacker and attacker.PBAttacker:IsValid() then
+					attacker = attacker.PBAttacker
+				end
+
+				if headshot then
+					local effectdata = EffectData()
+						effectdata:SetOrigin(dmginfo:GetDamagePosition())
+						local force = dmginfo:GetDamageForce()
+						effectdata:SetMagnitude(force:Length() * 3)
+						effectdata:SetNormal(force:GetNormalized())
+						effectdata:SetEntity(pl)
+					util.Effect("headshot", effectdata, true, true)
+				end
+
+				if pl:Health() <= -70 and not pl.NoGibs and not self.ZombieEscape then
+					pl:Gib(dmginfo)
+				elseif not pl.KnockedDown then
+					pl:CreateRagdoll()
+				end
+
+				pl.NextSpawnTime = ct + 4
+				timer.Simple(0, function() DelayedChangeToZombie(pl) end) -- We don't want people shooting barrels near teammates.
+				pl:PlayDeathSound()
+				pl:DropAll()
+				self.PreviouslyDied[pl:UniqueID()] = CurTime()
+				if self:GetWave() == 0 then
+					pl.DiedDuringWave0 = true
+				end
+
+				local frags = pl:Frags()
+				if frags < 0 then
+					pl.ChangeTeamFrags = math.ceil(frags / 5)
+				else
+					pl.ChangeTeamFrags = 0
+				end
+
+				if pl.SpawnedTime then
+					pl.SurvivalTime = math.max(ct - pl.SpawnedTime, pl.SurvivalTime or 0)
+					pl.SpawnedTime = nil
+				end
+
+				if team.NumPlayers(TEAM_HUMAN) <= 1 then
+					self.LastHumanPosition = pl:WorldSpaceCenter()
+
+					net.Start("zs_lasthumanpos")
+						net.WriteVector(self.LastHumanPosition)
+					net.Broadcast()
+				end
+
+				local hands = pl:GetHands()
+				if IsValid(hands) then
+					hands:Remove()
+				end
+
+				local inflictor = dmginfo:GetInflictor()
+
+				if inflictor == NULL then inflictor = attacker end
+
+				if inflictor == attacker and attacker:IsPlayer() then
+					local wep = attacker:GetActiveWeapon()
+					if wep:IsValid() then
+						inflictor = wep
+					end
+				end
+
+				net.Start("zs_pl_kill_pl")
+					net.WriteEntity(pl)
+					net.WriteEntity(attacker)
+					net.WriteString(inflictor:GetClass())
+					net.WriteUInt(plteam, 8)
+					net.WriteUInt(attacker:Team(), 8)
+					net.WriteBit(headshot)
+				net.Broadcast()
+				return
+			end
+			return old_DoPlayerDeath(pl, attacker, dmginfo,...)
+		end
+	end
+
+
+
+	local meta = FindMetaTable("Entity") --THIS ISN'T ON PLAYER! THIS IS ON ENTITY METATABLE!!
+	meta.OldFireBulletsLua_ZS_RB_1 = meta.OldFireBulletsLua_ZS_RB_1 or meta.FireBulletsLua
+	function meta:FireBulletsLua(src, dir, spread, num, damage, attacker, force_mul, tracer, callback, hull_size, hit_own_team, max_distance, filter, inflictor)
+		hit_own_team = hit_own_team or PlayerCanDamageTeam(self) or GAMEMODE:GetEndRound()
+		return self:OldFireBulletsLua_ZS_RB_1(src, dir, spread, num, damage, attacker, force_mul, tracer, callback, hull_size, hit_own_team, max_distance, filter, inflictor)
+	end
+end)
+
+
+function ulx.friendlyfire(calling_ply, state)
+	local addhook = function(event,name,func)
+		if state then hook.Add(event,name,func) else hook.Remove(event,name) end
+	end
+
+	addhook("PlayerShouldTakeDamage","ZS_RB_1_FRIENDLYFIREMODE",function(pl)
+		return true
+	end)
+	SetGlobalBool("zs_rb_1_friendlyfiremode",state) --EVERYONE IS ALLOWED TO KILL TEAMMATES!!! CHAOS!!
+	ulx.fancyLogAdmin(calling_ply, state and "#A enabled friendly fire" or "#A disabled friendly fire")
+end
+
+local friendlyfire = ulx.command(CATEGORY_NAME, "ulx friendlyfire", ulx.friendlyfire, "!friendlyfire")
+friendlyfire:addParam{
+	type = ULib.cmds.BoolArg,
+	hint = "Enabled"
+}
+
+friendlyfire:defaultAccess(ULib.ACCESS_ADMIN)
+friendlyfire:help("Enables Friendly Fire mode")
+
+function ulx.friendlyfire2(calling_ply, plys, state)
+	for i,v in pairs(plys) do 
+		v.AllowTeamDamage = state
+		v:SetNWBool("AllowTeamDamage",state) --PREDICTION
+	end
+	ulx.fancyLogAdmin(calling_ply, state and "#A enabled friendly fire on #T" or "#A disabled friendly fire on #T")
+end
+
+local friendlyfire2 = ulx.command(CATEGORY_NAME, "ulx friendlyfire2", ulx.friendlyfire2, "!friendlyfire2")
+
+friendlyfire2:addParam{
+	type = ULib.cmds.PlayersArg
+}
+
+friendlyfire2:addParam{
+	type = ULib.cmds.BoolArg,
+	hint = "Enabled"
+}
+
+friendlyfire2:defaultAccess(ULib.ACCESS_ADMIN)
+friendlyfire2:help("Enables Friendly Fire mode on target(s)")
+
 function ulx.zskd(cp, p, n)
 	for _, ply in pairs(p) do
 		if ply:IsValid() then ply:KnockDown(n) end
