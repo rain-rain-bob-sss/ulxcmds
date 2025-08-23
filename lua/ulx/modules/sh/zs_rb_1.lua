@@ -642,13 +642,13 @@ hook.Add("Initialize","ZS_RB_1_FRIENDLYFIREMODE_FIXBULLETS",function()
 						attacker = attacker.PBAttacker
 					end
 
-					if attacker:IsValid() and attacker:IsPlayer() then
+					if attacker:IsValid() and attacker:IsPlayer() and PlayerCanDamageTeam(attacker,ent) then
 						ent:SetLastAttacker(attacker)
 
 						local myteam = attacker:Team()
 						local otherteam = ent:Team()
 
-						if myteam == otherteam and PlayerCanDamageTeam(attacker,ent) then
+						if myteam == otherteam then
 							local damage = math.min(dmginfo:GetDamage(), ent:Health())
 							if damage > 0 then
 								local time = CurTime()
