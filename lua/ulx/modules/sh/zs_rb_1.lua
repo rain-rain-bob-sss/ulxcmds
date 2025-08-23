@@ -299,6 +299,46 @@ givexp:addParam{
 givexp:defaultAccess(ULib.ACCESS_ADMIN)
 givexp:help("Gives XP to target(s).")
 
+local itemCompletes = {}
+timer.Simple(1,function()
+	for type,_ in pairs(GAMEMODE.ZSInventoryItemData) do
+		if isnumber(type) then continue end
+		itemCompletes[#itemCompletes + 1] = type
+	end
+	table.sort(itemCompletes,function(a,b)
+		return b>a
+	end)
+end)
+
+--Give Item--
+function ulx.giveitem(calling_ply, target_plys, type)
+	local affected_plys = {}
+	for i = 1, #target_plys do
+		local v = target_plys[i]
+		if v:Alive() and v:Team() == TEAM_HUMAN then
+			v:AddInventoryItem(type)
+			table.insert(affected_plys, v)
+		end
+	end
+
+	ulx.fancyLogAdmin(calling_ply, "#A gave #T item: #s", affected_plys, type)
+end
+
+local giveitem = ulx.command(CATEGORY_NAME, "ulx giveitem", ulx.giveitem, "!giveitem")
+giveitem:addParam{
+	type = ULib.cmds.PlayersArg
+}
+
+giveitem:addParam{
+	type = ULib.cmds.StringArg,
+	hint = "comp_sawblade",
+	completes = itemCompletes,
+	ULib.cmds.takeRestOfLine
+}
+
+giveitem:defaultAccess(ULib.ACCESS_ADMIN)
+giveitem:help("Give a player a item - !giveitem")
+
 function ulx.weaponComplete( ply, args, overrideList, maxResults )
 	local targs = string.Trim( args )
 	local List = overrideList or {}
