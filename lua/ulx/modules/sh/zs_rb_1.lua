@@ -226,6 +226,35 @@ giveammo:addParam{
 
 giveammo:defaultAccess(ULib.ACCESS_ADMIN)
 giveammo:help("Gives the specified ammo to the target player(s).")
+
+--Heal--
+function ulx.healplayer(calling_ply, target_plys, amount)
+
+	local affected_plys = {}
+	for i = 1, #target_plys do
+		local v = target_plys[i]
+		if v:IsValid() and v:Alive() and v:Team() == TEAM_HUMAN then
+			v:HealPlayer(calling_ply,amount)
+			table.insert(affected_plys,v)
+		end
+	end
+
+	ulx.fancyLogAdmin(calling_ply, "#A healed #T(AMOUNT: #s)",affected_plys,amount)
+end
+
+local healplayer = ulx.command(CATEGORY_NAME, "ulx healplayer", ulx.healplayer, "!heal")
+healplayer:addParam{
+	type = ULib.cmds.PlayersArg
+}
+
+healplayer:addParam{
+	type = ULib.cmds.NumArg,
+	hint = "Amount"
+}
+
+healplayer:defaultAccess(ULib.ACCESS_ADMIN)
+healplayer:help("Heal target(s). - !heal")
+
 --Give Points--
 function ulx.givepoints(calling_ply, target_plys, amount)
 	for i = 1, #target_plys do
@@ -337,7 +366,16 @@ function ulx.forcegiveweapon(calling_ply, target_plys, weapon)
 			ent:SetPos(v:GetPos())
 			ent:Spawn()
 			ent:Activate()
+			if ent.ZombieOnly then
+				local old = ent.Holster
+				function ent:Holster(...) --ALLOW HOLSTER!
+					old(...)
+					return true
+				end
+			end
 			v:PickupWeapon(ent)
+			v:SelectWeapon(weapon)
+			v:SetActiveWeapon(v:GetWeapon(weapon))
 			table.insert(affected_plys, v)
 		end
 	end
@@ -584,7 +622,9 @@ hook.Add("Initialize","ZS_RB_1_FRIENDLYFIREMODE_FIXBULLETS",function()
 	if CLIENT then
 		local old_PrePlayerDraw = GM._PrePlayerDraw
 		function GM:_PrePlayerDraw(pl,...)
-			overrideteam = 99999
+			if P_Team(pl) == P_Team(MySelf) and PlayerCanDamageTeam(MySelf,pl) then
+				overrideteam = 99999
+			end
 			local r = old_PrePlayerDraw(self,pl,...)
 			overrideteam = nil
 			return r
@@ -918,14 +958,17 @@ function ulx.zsfrp(cp, health)
 		local trent = tr.Entity
 		if trent:IsValid() then
 			local oh = trent:GetMaxBarricadeHealth()
-			trent:SetBarricadeHealth(math.min(trent:GetMaxBarricadeHealth(), trent:GetBarricadeHealth() + health))
-			local healed = trent:GetBarricadeHealth() - oh
+			local old = trent:GetBarricadeHealth()
+			local new = math.min(trent:GetMaxBarricadeHealth(), trent:GetBarricadeHealth() + health)
+			trent:SetBarricadeHealth(new)
+			local healed = new - old
 			gamemode.Call("PlayerRepairedObject", cp, trent, healed, cp)
 			local ed = EffectData()
 			ed:SetOrigin(tr.HitPos)
 			ed:SetNormal(tr.HitNormal)
 			ed:SetMagnitude(1)
 			util.Effect("nailrepaired", ed, true, true)
+			ulx.fancyLogAdmin(cp, "#A force repaired a prop (REPAIRED: #s HP).",healed)
 		end
 	end
 end
@@ -964,6 +1007,7 @@ function ulx.zsd(cp, str, num, health)
 
 			pcall(function(n) obj:SetAmmo(n) end, num)
 			pcall(function(n) obj:SetObjectOwner(n) end, cp)
+			ulx.fancyLogAdmin(cp, "#A placed a deployable(#s).",str)
 		end
 	end
 end
