@@ -87,6 +87,7 @@ timer.Create("Refresh FORCECLASS_COMPLETES", 0.5, 3, function()
 	for classKey, class in ipairs(GAMEMODE.ZombieClasses) do
 		FORCECLASS_COMPLETES[#FORCECLASS_COMPLETES + 1] = class.Name
 	end
+	table.sort(FORCECLASS_COMPLETES,function(a,b) return b>a end)
 end)
 
 forceclass:defaultAccess(ULib.ACCESS_ADMIN)
@@ -866,7 +867,7 @@ function ulx.friendlyfire2(calling_ply, plys, state)
 		v.AllowTeamDamage = state
 		v:SetNWBool("AllowTeamDamage",state) --PREDICTION
 	end
-	ulx.fancyLogAdmin(calling_ply, state and "#A enabled friendly fire on #T" or "#A disabled friendly fire on #T")
+	ulx.fancyLogAdmin(calling_ply, state and "#A enabled friendly fire on #T" or "#A disabled friendly fire on #T",plys)
 end
 
 local friendlyfire2 = ulx.command(CATEGORY_NAME, "ulx friendlyfire2", ulx.friendlyfire2, "!friendlyfire2")
