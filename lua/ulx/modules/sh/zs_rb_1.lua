@@ -193,7 +193,7 @@ function ulx.giveammo(calling_ply, target_plys, amount, ammotype)
 	local a = game.GetAmmoTypes()
 
 	local oammotype = ammotype
-	ammotype = isstring(ammotype) and game.GetAmmoID(ammotype)
+	ammotype = isstring(ammotype) and game.GetAmmoID(ammotype) or ammotype
 	if not a[ammotype] then 
 		ULib.tsayError(calling_ply, "ammo " .. oammotype .. " doesn't exist!", true)
 		return
@@ -340,12 +340,11 @@ giveitem:addParam{
 giveitem:defaultAccess(ULib.ACCESS_ADMIN)
 giveitem:help("Give a player a item - !giveitem")
 
-function ulx.weaponComplete( ply, args, overrideList, maxResults )
+function ulx.weaponComplete( ply, args )
 	local targs = string.Trim( args )
-	local List = overrideList or {}
-	if overrideList then table.Empty(List) end
+	local List = {}
 
-	maxResults = maxResults or 50
+	local maxResults = 100
 	for _, SWEP in ipairs( weapons.GetList() ) do
 		if #List > maxResults then break end
 		if SWEP.QualityTier and SWEP.QualityTier >= 1 then continue end
@@ -362,7 +361,7 @@ function ulx.weaponComplete( ply, args, overrideList, maxResults )
 end
 
 local weaponCompletes = {}
-timer.Simple(1,function() ulx.weaponComplete(_,"",weaponCompletes) end)
+timer.Simple(1,function() table.Empty(weaponCompletes) for i,v in pairs(ulx.weaponComplete(_,"")) do weaponCompletes[i] = v end end)
 
 --Give Weapon--
 function ulx.giveweapon(calling_ply, target_plys, weapon)
