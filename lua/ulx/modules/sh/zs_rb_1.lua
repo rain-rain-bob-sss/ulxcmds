@@ -191,18 +191,18 @@ function ulx.giveammo(calling_ply, target_plys, amount, ammotype)
 	end
 
 	local a = game.GetAmmoTypes()
-	local b = table.GetKeys(a)
 
-	if not a[ammotype] and not b[ammotype] then 
-		ULib.tsayError(calling_ply, "ammo " .. ammotype .. " doesn't exist!", true)
+	local oammotype = ammotype
+	ammotype = isstring(ammotype) and game.GetAmmoID(ammotype)
+	if not a[ammotype] then 
+		ULib.tsayError(calling_ply, "ammo " .. oammotype .. " doesn't exist!", true)
 		return
 	end
-
 	local affected_plys = {}
 	for i = 1, #target_plys do
 		local v = target_plys[i]
 		if v:IsValid() and v:Alive() then --[[and v:Team() == TEAM_HUMAN]]
-			v:GiveAmmo(amount, ammotype)
+			v:GiveAmmo(amount, oammotype)
 		end
 	end
 
