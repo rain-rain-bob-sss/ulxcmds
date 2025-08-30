@@ -413,9 +413,11 @@ function ulx.forcegiveweapon(calling_ply, target_plys, weapon)
 					return true
 				end
 			end
-			v:PickupWeapon(ent)
-			v:SelectWeapon(weapon)
-			v:SetActiveWeapon(v:GetWeapon(weapon))
+			pcall(function()
+				v:PickupWeapon(ent,v:HasWeapon(weapon))
+				v:SelectWeapon(weapon)
+				v:SetActiveWeapon(v:GetWeapon(weapon))
+			end)
 			table.insert(affected_plys, v)
 		end
 	end
