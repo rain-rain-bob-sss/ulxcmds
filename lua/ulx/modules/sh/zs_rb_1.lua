@@ -82,7 +82,7 @@ forceclass:addParam{
 	ULib.cmds.takeRestOfLine
 }
 
-timer.Create("Refresh FORCECLASS_COMPLETES", 0.5, 3, function()
+timer.Create("Refresh FORCECLASS_COMPLETES", 0.5, 1, function()
 	table.Empty(FORCECLASS_COMPLETES)
 	for classKey, class in ipairs(GAMEMODE.ZombieClasses) do
 		FORCECLASS_COMPLETES[#FORCECLASS_COMPLETES + 1] = class.Name
@@ -605,17 +605,17 @@ endround:help("End Round.")
 
 --This should be correct.
 --I hope it is correct and doesn't break anything.
-local function PlayerCanDamageTeam(att,vic)
+function PlayerCanDamageTeam(att,vic)
 	--Why NWBool? Because prediction. Haha, source engine bullcrap
 	if GetGlobalBool("zs_rb_1_friendlyfiremode") then return true end
-	if not att then return vic:GetNWBool("AllowTeamDamage") end
-	if not vic then return att:GetNWBool("AllowTeamDamage") end
+	if not IsValid(att) then return vic:GetNWBool("AllowTeamDamage") end
+	if not IsValid(vic) then return att:GetNWBool("AllowTeamDamage") end
 	return att:GetNWBool("AllowTeamDamage") or vic:GetNWBool("AllowTeamDamage")
 end
 
-local function PlayerZSDamageTeam(att,vic)
-	if not att then return vic:GetNWBool("AllowTeamDamage") end
-	if not vic then return att:GetNWBool("AllowTeamDamage") end
+function PlayerZSDamageTeam(att,vic)
+	if not IsValid(att) then return vic:GetNWBool("AllowTeamDamage") end
+	if not IsValid(vic) then return att:GetNWBool("AllowTeamDamage") end
 	return att:GetNWBool("AllowTeamDamage") or vic:GetNWBool("AllowTeamDamage")
 end
 
@@ -694,7 +694,7 @@ hook.Add("Initialize","ZS_RB_1_FRIENDLYFIREMODE_FIXBULLETS",function()
 								local time = CurTime()
 
 								attacker.DamageDealt[myteam] = attacker.DamageDealt[myteam] + damage
-								local points = damage / 100 * 25
+								local points = damage / 100 * 15
 								if POINTSMULTIPLIER then
 									points = points * POINTSMULTIPLIER
 								end
