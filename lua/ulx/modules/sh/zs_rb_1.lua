@@ -259,7 +259,9 @@ healplayer:help("Heal target(s). - !heal")
 --Give Points--
 function ulx.givepoints(calling_ply, target_plys, amount)
 	for i = 1, #target_plys do
+		_RB_D3BOT_FORK_NOBOTPOINTSGIVE = true
 		target_plys[i]:AddPoints(amount)
+		_RB_D3BOT_FORK_NOBOTPOINTSGIVE = false
 	end
 
 	ulx.fancyLogAdmin(calling_ply, "#A gave #i points to #T", amount, target_plys)
