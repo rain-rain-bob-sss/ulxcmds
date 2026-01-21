@@ -1,4 +1,4 @@
-if engine.ActiveGamemode() ~= "zombiesurvival" then return end
+if engine.ActiveGamemode() ~= "zombiesurvival" and engine.ActiveGamemode() ~= "zombiesurvival-improve" then return end
 local CATEGORY_NAME = "Zombie Survival"
 local function redeemHumans(callingPlayer)
 	local players = player.GetAll()
@@ -532,7 +532,7 @@ forceboss:defaultAccess(ULib.ACCESS_ALL)
 forceboss:help("Sets target(s) as boss.")
 function ulx.forceteam(caller, targets, teamName)
 	local teams = {
-		bandit = TEAM_UNDEAD, --WHAT THE FUCK!
+		bandit = TEAM_BANDIT or TEAM_UNDEAD, --WHAT THE FUCK!
 		human = TEAM_SURVIVOR,
 		humans = TEAM_SURVIVOR,
 		zombie = TEAM_UNDEAD,
@@ -664,6 +664,7 @@ hook.Add("Initialize","ZS_RB_1_FRIENDLYFIREMODE_FIXBULLETS",function()
 
 	local GM = GAMEMODE
 	if CLIENT then
+		--[[
 		local old_PrePlayerDraw = GM._PrePlayerDraw
 		function GM:_PrePlayerDraw(pl,...)
 			if P_Team(pl) == P_Team(MySelf) and PlayerCanDamageTeam(MySelf,pl) then
@@ -673,6 +674,7 @@ hook.Add("Initialize","ZS_RB_1_FRIENDLYFIREMODE_FIXBULLETS",function()
 			overrideteam = nil
 			return r
 		end
+		]]
 	else
 		local old_EntityTakeDamage = GM.EntityTakeDamage
 		function GM:EntityTakeDamage(ent, dmginfo,...)
