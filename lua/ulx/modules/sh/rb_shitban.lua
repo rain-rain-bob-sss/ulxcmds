@@ -488,7 +488,7 @@ local shitbanid = ulx.command( CATEGORY_NAME, "ulx shitbanid", ulx.shitbanid, "!
 shitbanid:addParam{ type=ULib.cmds.StringArg, hint="steamid" }
 shitbanid:addParam{ type=ULib.cmds.NumArg, hint="minutes, 0 for perma", ULib.cmds.optional, ULib.cmds.allowTimeString, min=0 }
 shitbanid:addParam{ type=ULib.cmds.StringArg, hint="reason", ULib.cmds.optional, ULib.cmds.takeRestOfLine, completes=ulx.common_kick_reasons }
-shitbanid:defaultAccess( ULib.ACCESS_SUPERADMIN )
+shitbanid:defaultAccess( ULib.ACCESS_ADMIN )
 shitbanid:help( "Make target(SteamID) unable to play the game normally." )
 
 function ulx.unshitban( calling_ply, steamid )
