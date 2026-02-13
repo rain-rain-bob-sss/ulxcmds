@@ -39,15 +39,3 @@ setguilt:addParam{
     type = ULib.cmds.NumArg,
     hint = "guilt"
 }
-
-function ulx.settime(caller, time)
-    if not MuR.SetEndTime then return end
-    MuR:SetEndTime(CurTime() + time)
-end
-
-local settime = ulx.command("Bloodshed", "ulx settime", ulx.settime, "!settime")
-settime:defaultAccess(ULib.ACCESS_ADMIN)
-settime:addParam{
-    type = ULib.cmds.NumArg,
-    hint = "time"
-}
