@@ -46,7 +46,7 @@ local function shiton(ply)
     setnwbool(ply,"build_pvp",false)
     setnwbool(ply,"shitbanned",true)
     local t = ulx.shitbanned[steamid(ply)]
-    if t and t.unban then setnwint(ply,"shitbanned_time",t.unban - os.time()) end
+    if t and t.unban then setnwint(ply,"shitbanned_time",(t.unban == 0) and -1 or math.max(t.unban - os.time(),0)) end
     if not haswep(ply,"weapon_crowbar") and gm() == "sandbox" then give(ply,"weapon_crowbar") end
 
     for _,wep in next,getweps(ply) do
@@ -89,7 +89,7 @@ if CLIENT then
         hook.Add("HUDPaint","ulx_rb_shitban",function()
             if lp and getnwbool(lp,"shitbanned") then
                 local time = getnwint(lp,"shitbanned_time",0)
-                if time <= 0 then
+                if time == -1 then
                     time = "perma :|"
                 else
                     time = ULib.secondsToStringTime(time)
